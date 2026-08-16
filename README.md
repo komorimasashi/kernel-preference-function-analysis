@@ -1,9 +1,8 @@
 # Kernel-Based Analysis of Preference Functions
 
 This repository contains the anonymized empirical data and the Python code used
-for the simulations and empirical case study reported in *Modeling the
-Functions of Preferences: A Kernel-Based Framework for Analyzing Individual
-Differences*.
+for the simulations and empirical case study reported in *A Kernel-Based
+Framework for Analyzing Individual Differences in Preference Functions*.
 
 The repository is currently being prepared as a private working copy. A
 versioned public release will be archived on Zenodo when the manuscript and

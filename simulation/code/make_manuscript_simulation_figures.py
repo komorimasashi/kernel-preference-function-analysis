@@ -24,6 +24,18 @@ SUBSPACE_CONTRASTS = (
     / "simulation2_sensitivity"
     / "sensitivity_paired_contrasts.csv"
 )
+SUBSPACE_SUMMARY = (
+    SIMULATION_DIR
+    / "results"
+    / "simulation2_sensitivity"
+    / "sensitivity_summary.csv"
+)
+SUBSPACE_ORACLE_REFERENCE = (
+    SIMULATION_DIR
+    / "results"
+    / "simulation2_sensitivity"
+    / "oracle_l2_reference_summary.csv"
+)
 
 
 METHODS = {
@@ -75,85 +87,133 @@ def plot_reconstruction_metric(
     save_figure(fig, stem)
 
 
-def plot_advantage_heatmaps(
+def plot_subspace_accuracy(
+    summary: pd.DataFrame,
     contrasts: pd.DataFrame,
+    oracle_reference: pd.DataFrame,
     metric: str,
-    color_limit: float,
     stem: str,
 ) -> None:
-    data = contrasts[
+    accuracy = summary[
+        (summary["target"] == "OracleRKHS")
+        & (summary["metric"] == metric)
+    ].copy()
+    differences = contrasts[
         (contrasts["target"] == "OracleRKHS")
         & (contrasts["metric"] == metric)
     ].copy()
     n_values = [15, 30, 50]
     snr_values = [0.5, 1.0, 2.0]
     fig, axes = plt.subplots(
-        1, 3, figsize=(10.6, 3.35), sharex=True, sharey=True, constrained_layout=True
+        3,
+        3,
+        figsize=(10.6, 7.7),
+        sharex=True,
+        sharey=True,
+        constrained_layout=True,
     )
-    image = None
-    for ax, retained in zip(axes, [1, 2, 3]):
-        values = np.full((len(snr_values), len(n_values)), np.nan)
-        lows = np.full_like(values, np.nan)
-        highs = np.full_like(values, np.nan)
-        for row_index, snr in enumerate(snr_values):
-            for column_index, n_obs in enumerate(n_values):
-                row = data[
-                    (data["L"] == retained)
-                    & (data["SNR"] == snr)
-                    & (data["N_obs"] == n_obs)
-                ].iloc[0]
-                values[row_index, column_index] = row["rkhs_advantage"]
-                lows[row_index, column_index] = row["ci_low"]
-                highs[row_index, column_index] = row["ci_high"]
-        image = ax.imshow(
-            values,
-            origin="lower",
-            cmap="RdBu_r",
-            vmin=-color_limit,
-            vmax=color_limit,
-            aspect="equal",
-        )
-        for row_index in range(values.shape[0]):
-            for column_index in range(values.shape[1]):
-                significant = (lows[row_index, column_index] > 0) or (
-                    highs[row_index, column_index] < 0
+    for row_index, snr in enumerate(snr_values):
+        for column_index, retained in enumerate([1, 2, 3]):
+            ax = axes[row_index, column_index]
+            for method in ("L2", "RKHS"):
+                style = METHODS[method]
+                data = accuracy[
+                    (accuracy["L"] == retained)
+                    & (accuracy["SNR"] == snr)
+                    & (accuracy["method"] == method)
+                ].sort_values("N_obs")
+                yerr = np.vstack(
+                    [data["mean"] - data["ci_low"], data["ci_high"] - data["mean"]]
                 )
-                label = f"{values[row_index, column_index]:+.3f}"
-                if significant:
-                    label += "*"
-                color = "white" if abs(values[row_index, column_index]) > 0.6 * color_limit else "black"
-                ax.text(
-                    column_index,
-                    row_index,
-                    label,
-                    ha="center",
-                    va="center",
-                    fontsize=8.5,
-                    color=color,
+                ax.errorbar(
+                    data["N_obs"],
+                    data["mean"],
+                    yerr=yerr,
+                    label=style["label"],
+                    color=style["color"],
+                    marker=style["marker"],
+                    linewidth=1.6,
+                    markersize=4.8,
+                    capsize=2.5,
                 )
-        ax.set_title(f"$L={retained}$")
-        ax.set_xticks(range(len(n_values)), labels=n_values)
-        ax.set_yticks(range(len(snr_values)), labels=["0.5", "1", "2"])
-        ax.set_xlabel("Observations per participant, $N$")
-    axes[0].set_ylabel("SNR")
-    colorbar = fig.colorbar(image, ax=axes, shrink=0.82, pad=0.02)
-    colorbar.set_label("RKHS-PCA advantage in mean squared cosine")
+
+            reference = oracle_reference[
+                (oracle_reference["L"] == retained)
+                & (oracle_reference["SNR"] == snr)
+            ].sort_values("N_obs")
+            reference_yerr = np.vstack(
+                [
+                    reference["mean"] - reference["ci_low"],
+                    reference["ci_high"] - reference["mean"],
+                ]
+            )
+            ax.errorbar(
+                reference["N_obs"],
+                reference["mean"],
+                yerr=reference_yerr,
+                label="Noiseless L2-PCA reference, $c$",
+                color="#4D4D4D",
+                marker="D",
+                linestyle="none",
+                linewidth=1.3,
+                markersize=4.0,
+                capsize=2.5,
+            )
+            ax.axhline(1.0, color="#A0A0A0", linestyle=":", linewidth=1.0)
+
+            paired = differences[
+                (differences["L"] == retained)
+                & (differences["SNR"] == snr)
+            ].sort_values("N_obs")
+            for item in paired.itertuples(index=False):
+                if item.ci_low > 0 or item.ci_high < 0:
+                    ax.text(
+                        item.N_obs,
+                        0.985,
+                        "*",
+                        ha="center",
+                        va="top",
+                        fontsize=10,
+                    )
+
+            if row_index == 0:
+                ax.set_title(f"$L={retained}$")
+            if column_index == 0:
+                ax.set_ylabel(f"SNR = {snr:g}\nMean squared cosine")
+            if row_index == len(snr_values) - 1:
+                ax.set_xlabel("Observations per participant, $N$")
+            ax.set_xticks(n_values)
+            ax.set_ylim(0.0, 1.03)
+            ax.set_yticks([0.0, 0.25, 0.5, 0.75, 1.0])
+            ax.spines[["top", "right"]].set_visible(False)
+
+    handles, labels = axes[0, 0].get_legend_handles_labels()
+    fig.legend(
+        handles,
+        labels,
+        loc="outside upper center",
+        ncol=3,
+        frameon=False,
+    )
     save_figure(fig, stem)
 
 
 def main() -> None:
     shape_summary = pd.read_csv(SHAPE_SUMMARY)
+    subspace_summary = pd.read_csv(SUBSPACE_SUMMARY)
     contrasts = pd.read_csv(SUBSPACE_CONTRASTS)
+    oracle_reference = pd.read_csv(SUBSPACE_ORACLE_REFERENCE)
     plot_reconstruction_metric(
         shape_summary,
         metric="zRMSE",
         ylabel="z-standardized RMSE",
         stem="simulation1_shape_zrmse",
     )
-    plot_advantage_heatmaps(
+    plot_subspace_accuracy(
+        subspace_summary,
         contrasts,
+        oracle_reference,
         metric="function_mean_cos2",
-        color_limit=0.35,
         stem="simulation2_function_subspace",
     )
 

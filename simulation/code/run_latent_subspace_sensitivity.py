@@ -131,6 +131,30 @@ def choose_regularization(x_obs, observations):
     return best
 
 
+def draw_true_coefficients(rng, latent_axes, k_quad_centres, weights):
+    """Draw latent functions and their continuously standardized versions."""
+    latent_scores = rng.normal(size=(N_SUBJECTS, len(LATENT_EIGENVALUES)))
+    latent_scores *= np.sqrt(LATENT_EIGENVALUES)[None, :]
+    raw_coefficients = latent_scores @ latent_axes.T
+
+    true_values_quad = raw_coefficients @ k_quad_centres.T
+    continuous_variance = (true_values_quad**2) @ weights / (X_MAX - X_MIN)
+    scales = np.sqrt(np.maximum(continuous_variance, 1e-15))
+    standardized_coefficients = raw_coefficients / scales[:, None]
+    return raw_coefficients, standardized_coefficients
+
+
+def generate_noisy_observations(rng, true_values_observed, snr):
+    """Add subject-specific Gaussian noise at the requested SNR."""
+    observations = np.zeros_like(true_values_observed)
+    for subject in range(N_SUBJECTS):
+        noise_sd = np.std(true_values_observed[subject]) / snr
+        observations[subject] = true_values_observed[subject] + rng.normal(
+            0.0, noise_sd, true_values_observed.shape[1]
+        )
+    return observations
+
+
 def simulate_replication(rng, observation_count, snr, latent_axes):
     x_obs = np.linspace(X_MIN, X_MAX, observation_count)
     k_centres = common.k_rbf(KERNEL_CENTRES, KERNEL_CENTRES, ELL_TRUE)
@@ -138,24 +162,14 @@ def simulate_replication(rng, observation_count, snr, latent_axes):
     k_centres_observed = common.k_rbf(KERNEL_CENTRES, x_obs, ELL_TRUE)
     centre_l2, observed_l2, cross_l2 = l2_inner_product_blocks(x_obs)
 
-    latent_scores = rng.normal(size=(N_SUBJECTS, len(LATENT_EIGENVALUES)))
-    latent_scores *= np.sqrt(LATENT_EIGENVALUES)[None, :]
-    true_coefficients_raw = latent_scores @ latent_axes.T
-
     x_quad, weights = trapezoidal_grid()
     k_quad_centres = common.k_rbf(x_quad, KERNEL_CENTRES, ELL_TRUE)
-    true_values_quad = true_coefficients_raw @ k_quad_centres.T
-    continuous_variance = (true_values_quad**2) @ weights / (X_MAX - X_MIN)
-    scales = np.sqrt(np.maximum(continuous_variance, 1e-15))
-    true_coefficients = true_coefficients_raw / scales[:, None]
+    true_coefficients_raw, true_coefficients = draw_true_coefficients(
+        rng, latent_axes, k_quad_centres, weights
+    )
 
     true_values_observed = true_coefficients_raw @ k_centres_observed
-    observations = np.zeros_like(true_values_observed)
-    for subject in range(N_SUBJECTS):
-        noise_sd = np.std(true_values_observed[subject]) / snr
-        observations[subject] = true_values_observed[subject] + rng.normal(
-            0.0, noise_sd, observation_count
-        )
+    observations = generate_noisy_observations(rng, true_values_observed, snr)
     standardized_observations = np.vstack(
         [common.zscore(row) for row in observations]
     )
@@ -225,6 +239,82 @@ def simulate_replication(rng, observation_count, snr, latent_axes):
                 )
         rows.append(row)
     return rows
+
+
+def oracle_l2_reference_results():
+    """Replay the design and compare noiseless L2 and RKHS PCA subspaces.
+
+    The random-number stream is advanced through the observation-noise draws so
+    that each reference value corresponds exactly to the Monte Carlo
+    replication in the saved Simulation 2 results. No KRR fitting is required.
+    """
+    latent_axes = make_common_latent_axes()
+    x_quad, weights = trapezoidal_grid()
+    k_quad_centres = common.k_rbf(x_quad, KERNEL_CENTRES, ELL_TRUE)
+    k_centres = common.k_rbf(KERNEL_CENTRES, KERNEL_CENTRES, ELL_TRUE)
+    centre_l2 = k_quad_centres.T @ (weights[:, None] * k_quad_centres)
+
+    rows = []
+    condition_index = 0
+    for observation_count in N_OBS_LIST:
+        x_obs = np.linspace(X_MIN, X_MAX, observation_count)
+        k_centres_observed = common.k_rbf(
+            KERNEL_CENTRES, x_obs, ELL_TRUE
+        )
+        for snr in SNR_LIST:
+            rng = np.random.default_rng(RNG_SEED + 100_000 * condition_index)
+            for replication in range(N_REPEATS):
+                raw_coefficients, true_coefficients = draw_true_coefficients(
+                    rng, latent_axes, k_quad_centres, weights
+                )
+                true_values_observed = raw_coefficients @ k_centres_observed
+                generate_noisy_observations(rng, true_values_observed, snr)
+
+                for component_count in L_LIST:
+                    rkhs_target = principal_components(
+                        true_coefficients, k_centres, component_count
+                    )
+                    l2_target = principal_components(
+                        true_coefficients, centre_l2, component_count
+                    )
+                    rows.append(
+                        {
+                            "N_obs": observation_count,
+                            "SNR": snr,
+                            "L": component_count,
+                            "rep": replication,
+                            "oracle_l2_to_rkhs_mean_cos2": (
+                                cross_metric_mean_cos2(
+                                    rkhs_target,
+                                    l2_target,
+                                    k_centres,
+                                    k_centres,
+                                    k_centres,
+                                )
+                            ),
+                        }
+                    )
+            condition_index += 1
+    return pd.DataFrame(rows)
+
+
+def summarise_oracle_l2_reference(reference_results):
+    rows = []
+    for (observation_count, snr, component_count), group in (
+        reference_results.groupby(["N_obs", "SNR", "L"])
+    ):
+        mean, low, high = mean_ci(group["oracle_l2_to_rkhs_mean_cos2"])
+        rows.append(
+            {
+                "N_obs": observation_count,
+                "SNR": snr,
+                "L": component_count,
+                "mean": mean,
+                "ci_low": low,
+                "ci_high": high,
+            }
+        )
+    return pd.DataFrame(rows)
 
 
 def mean_ci(values):
@@ -309,9 +399,17 @@ def main():
 
     results = pd.DataFrame(rows)
     summary, contrasts = summarise(results)
+    oracle_reference = oracle_l2_reference_results()
+    oracle_reference_summary = summarise_oracle_l2_reference(oracle_reference)
     results.to_csv(OUT_DIR / "sensitivity_replication_results.csv", index=False)
     summary.to_csv(OUT_DIR / "sensitivity_summary.csv", index=False)
     contrasts.to_csv(OUT_DIR / "sensitivity_paired_contrasts.csv", index=False)
+    oracle_reference.to_csv(
+        OUT_DIR / "oracle_l2_reference_replication_results.csv", index=False
+    )
+    oracle_reference_summary.to_csv(
+        OUT_DIR / "oracle_l2_reference_summary.csv", index=False
+    )
 
     primary = contrasts[
         (contrasts["target"] == "OracleRKHS") & (contrasts["L"] == 3)

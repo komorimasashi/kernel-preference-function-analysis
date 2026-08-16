@@ -116,6 +116,29 @@ def validate_simulation_results() -> None:
     assert set(main_contrasts["metric"]) == {"function_mean_cos2"}
     assert set(empirical_design["metric"]) == {"function_mean_cos2"}
 
+    reference_dir = simulation_dir / "simulation2_sensitivity"
+    oracle_reference = pd.read_csv(
+        reference_dir / "oracle_l2_reference_replication_results.csv"
+    )
+    oracle_reference_summary = pd.read_csv(
+        reference_dir / "oracle_l2_reference_summary.csv"
+    )
+    assert len(oracle_reference) == 9 * 200 * 3
+    assert len(oracle_reference_summary) == 9 * 3
+    assert not oracle_reference.duplicated(
+        subset=["N_obs", "SNR", "L", "rep"]
+    ).any()
+    assert oracle_reference["oracle_l2_to_rkhs_mean_cos2"].between(0, 1).all()
+    reference_example = oracle_reference_summary[
+        (oracle_reference_summary["N_obs"] == 50)
+        & (oracle_reference_summary["SNR"] == 2.0)
+        & (oracle_reference_summary["L"] == 1)
+    ]
+    assert len(reference_example) == 1
+    assert np.isclose(
+        reference_example.iloc[0]["mean"], 0.6665092567556761, atol=1e-12
+    )
+
 
 def validate_simulation_package() -> None:
     simulation_dir = ROOT / "simulation"

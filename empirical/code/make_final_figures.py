@@ -207,22 +207,23 @@ def figure5(model, x_grid):
     z_sd = np.std(model.Z, axis=0)
     generated = {}
     for pc in range(3):
-        for multiplier in (-3, 0, 3):
+        for multiplier in (-2, 0, 2):
             z = z_mean.copy()
             z[pc] += multiplier * z_sd[pc]
             generated[(pc, multiplier)] = model.generate_pos(x_grid, z[None, :])[0]
 
     fig, axes = plt.subplots(3, 3, figsize=(8.3, 8.3), sharex=True, sharey=True)
-    column_titles = ["-3SD", "Mean", "+3SD"]
-    multipliers = [-3, 0, 3]
+    column_titles = ["-2SD", "Mean", "+2SD"]
+    multipliers = [-2, 0, 2]
     all_values = np.concatenate(list(generated.values()))
-    y_limit = max(4.0, float(np.max(np.abs(all_values))) * 1.08)
+    y_limit = max(2.2, float(np.max(np.abs(all_values))) * 1.08)
     for row in range(3):
         for col, multiplier in enumerate(multipliers):
             ax = axes[row, col]
             ax.plot(x_grid[:, 0], generated[(row, multiplier)], color="black", linewidth=1.0)
             ax.set_xlim(-1, 1)
             ax.set_ylim(-y_limit, y_limit)
+            ax.set_yticks([-2, -1, 0, 1, 2])
             ax.set_xlabel(r"$x$")
             if col == 0:
                 ax.set_ylabel("Standardized preference")
