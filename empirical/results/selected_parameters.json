@@ -1,0 +1,11 @@
+{
+  "cv": "5-fold contiguous blocks of the sorted union of all participants' x values",
+  "preprocessing": "ratings z-standardized separately within each participant",
+  "aggregation": "zRMSE within participant and fold, then equal-weight mean across folds and participants",
+  "length": 0.44668359215096315,
+  "noise_level": 1.0,
+  "beta_precision_in_code": 1.0,
+  "beta_regularization_for_mean_squared_loss_n50": 0.02,
+  "mean_standardized_rmse": 1.0844346148368396,
+  "jitter": 1e-06
+}

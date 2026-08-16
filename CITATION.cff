@@ -1,0 +1,13 @@
+cff-version: 1.2.0
+message: "If you use these materials, please cite the associated article and archived release."
+title: "Kernel-Based Analysis of Preference Functions: Data and Code"
+type: software
+authors:
+  - family-names: Komori
+    given-names: Masashi
+  - family-names: Tanaka
+    given-names: Sho
+  - family-names: Ishibashi
+    given-names: Hideaki
+repository-code: "https://github.com/komorimasashi/kernel-preference-function-analysis"
+version: 0.1.0
