@@ -74,7 +74,7 @@ def figure3(model, x_grid, curves):
     margin = 0.06 * (curves.max() - curves.min())
     ax.set_ylim(curves.min() - margin, curves.max() + margin)
     ax.set_xlabel(r"$x$")
-    ax.set_ylabel("Utility")
+    ax.set_ylabel("Standardized preference")
     ax.legend(loc="center left", bbox_to_anchor=(1.02, 0.5), frameon=True)
     fig.subplots_adjust(right=0.78)
     fig.savefig(OUTPUT_DIR / "empirical_individual_functions.pdf")
@@ -225,7 +225,7 @@ def figure5(model, x_grid):
             ax.set_ylim(-y_limit, y_limit)
             ax.set_xlabel(r"$x$")
             if col == 0:
-                ax.set_ylabel("Utility")
+                ax.set_ylabel("Standardized preference")
             if row == 0:
                 ax.set_title(column_titles[col], fontsize=16)
         axes[row, 0].text(
@@ -311,7 +311,7 @@ def figure6b(x_grid, curves, cluster_labels):
         ax.set_xlim(-1, 1)
         ax.set_ylim(-mean_limit, mean_limit)
         ax.set_xlabel(r"$x$", fontsize=8)
-        ax.set_ylabel("Utility", fontsize=8)
+        ax.set_ylabel("Standardized preference", fontsize=8)
         ax.tick_params(labelsize=6)
 
     fig.subplots_adjust(left=0.09, right=0.98, top=0.94, bottom=0.10, hspace=0.40, wspace=0.30)
