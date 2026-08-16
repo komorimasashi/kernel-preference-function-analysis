@@ -5,8 +5,8 @@
 - [x] Confirm code license (MIT) and data/output license (CC BY 4.0).
 - [ ] Run the empirical selected-parameter fit and regenerate all empirical
   figures.
-- [ ] Regenerate all simulation figures from the saved result tables.
-- [ ] Run at least one reduced smoke test for each Monte Carlo workflow.
+- [x] Regenerate all simulation figures from the saved result tables.
+- [x] Run at least one reduced smoke test for each Monte Carlo workflow.
 - [ ] Confirm that the saved tables reproduce every numerical claim in the
   manuscript.
 - [ ] Replace the provisional citation metadata with the accepted article

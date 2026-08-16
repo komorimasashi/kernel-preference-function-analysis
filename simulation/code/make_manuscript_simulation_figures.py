@@ -1,9 +1,4 @@
-"""Create the simulation figures used in the manuscript.
-
-The script reads only the final, expanded-grid ablation and the final latent
-subspace sensitivity analyses.  It deliberately does not use the earlier
-narrow-grid or pilot results.
-"""
+"""Create the two simulation figures used in the current manuscript."""
 
 from pathlib import Path
 
@@ -154,23 +149,11 @@ def main() -> None:
         ylabel="z-standardized RMSE",
         stem="simulation1_shape_zrmse",
     )
-    plot_reconstruction_metric(
-        shape_summary,
-        metric="dX_peak",
-        ylabel="Peak localization error",
-        stem="simulation1_peak_error",
-    )
     plot_advantage_heatmaps(
         contrasts,
         metric="function_mean_cos2",
         color_limit=0.35,
         stem="simulation2_function_subspace",
-    )
-    plot_advantage_heatmaps(
-        contrasts,
-        metric="score_mean_cos2",
-        color_limit=0.45,
-        stem="simulation2_score_subspace",
     )
 
 

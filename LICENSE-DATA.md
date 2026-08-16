@@ -22,5 +22,5 @@ and Zenodo DOI are available, the suggested attribution is:
 > Komori, M., Tanaka, S., & Ishibashi, H. (2026). *Kernel-Based Analysis of
 > Preference Functions: Data and Code*. GitHub.
 
-The Python source code and Jupyter notebook are separately licensed under the
-MIT License in `LICENSE`.
+The Python source code is separately licensed under the MIT License in
+`LICENSE`.

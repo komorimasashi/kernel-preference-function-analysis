@@ -65,6 +65,7 @@ def validate_simulation_results() -> None:
     shape = pd.read_csv(
         simulation_dir / "simulation1_metric_ablation" / "metric_ablation_summary.csv"
     )
+    assert set(shape["metric"]) == {"zRMSE"}
     expected_zrmse = {
         (3, "Raw"): 0.5592393834,
         (3, "L2"): 0.4810738626,
@@ -107,11 +108,45 @@ def validate_simulation_results() -> None:
         assert len(row) == 1
         assert np.isclose(row.iloc[0]["rkhs_advantage"], expected, atol=1e-10)
 
+    main_contrasts = pd.read_csv(
+        simulation_dir
+        / "simulation2_sensitivity"
+        / "sensitivity_paired_contrasts.csv"
+    )
+    assert set(main_contrasts["metric"]) == {"function_mean_cos2"}
+    assert set(empirical_design["metric"]) == {"function_mean_cos2"}
+
+
+def validate_simulation_package() -> None:
+    simulation_dir = ROOT / "simulation"
+    code_files = {
+        path.name for path in (simulation_dir / "code").glob("*.py")
+    }
+    assert code_files == {
+        "make_manuscript_simulation_figures.py",
+        "run_latent_subspace_sensitivity.py",
+        "run_latent_subspace_sensitivity_T20_N50.py",
+        "run_metric_ablation.py",
+        "simulation_common.py",
+    }
+    assert not list((simulation_dir / "code").glob("*.ipynb"))
+
+    figure_files = {
+        path.name for path in (simulation_dir / "figures").iterdir() if path.is_file()
+    }
+    assert figure_files == {
+        "simulation1_shape_zrmse.pdf",
+        "simulation1_shape_zrmse.png",
+        "simulation2_function_subspace.pdf",
+        "simulation2_function_subspace.png",
+    }
+
 
 def main() -> None:
     validate_empirical_data()
     validate_empirical_results()
     validate_simulation_results()
+    validate_simulation_package()
     print("Release validation passed: data structure and manuscript-facing results match.")
 
 

@@ -54,7 +54,7 @@ The selected values are `length = 0.4466835922` (reported as `0.45`) and
 ## Simulation 1: pointwise shape reconstruction
 
 ```bash
-python simulation/code/run_metric_ablation_expanded_grid.py
+python simulation/code/run_metric_ablation.py
 ```
 
 This runs 200 Monte Carlo replications comparing Raw-PCA, KRR--L2-PCA, and
@@ -106,8 +106,8 @@ dates, and other direct identifiers are not included. See
 
 ## Citation and licenses
 
-Citation metadata are provided in `CITATION.cff`. The Python source code and
-Jupyter notebook are licensed under the MIT License in `LICENSE`. The data,
+Citation metadata are provided in `CITATION.cff`. The Python source code is
+licensed under the MIT License in `LICENSE`. The data,
 numerical results, generated figures, and documentation are licensed under
 CC BY 4.0 as specified in `LICENSE-DATA.md`. The Zenodo DOI will be added to all
 three files before the public release.
