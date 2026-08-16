@@ -2,7 +2,7 @@
 
 - [x] Confirm that sharing the anonymized participant-level ratings is
   consistent with the ethics approval and participant consent.
-- [ ] Confirm code license and data license.
+- [x] Confirm code license (MIT) and data/output license (CC BY 4.0).
 - [ ] Run the empirical selected-parameter fit and regenerate all empirical
   figures.
 - [ ] Regenerate all simulation figures from the saved result tables.

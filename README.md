@@ -104,7 +104,10 @@ Participant numbers are arbitrary study identifiers; names, contact details,
 dates, and other direct identifiers are not included. See
 `empirical/DATA_DICTIONARY.md` for the variable definitions.
 
-## Citation and license
+## Citation and licenses
 
-Citation metadata are provided in `CITATION.cff`. A DOI and reuse licenses will
-be added before the public Zenodo release.
+Citation metadata are provided in `CITATION.cff`. The Python source code and
+Jupyter notebook are licensed under the MIT License in `LICENSE`. The data,
+numerical results, generated figures, and documentation are licensed under
+CC BY 4.0 as specified in `LICENSE-DATA.md`. The Zenodo DOI will be added to all
+three files before the public release.
