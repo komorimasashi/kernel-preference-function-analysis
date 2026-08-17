@@ -124,20 +124,29 @@ def validate_simulation_results() -> None:
         reference_dir / "oracle_l2_reference_summary.csv"
     )
     assert len(oracle_reference) == 9 * 200 * 3
-    assert len(oracle_reference_summary) == 9 * 3
+    assert len(oracle_reference_summary) == 3
+    assert set(oracle_reference_summary["L"]) == {1, 2, 3}
+    assert (oracle_reference_summary["n_reps"] == 9 * 200).all()
     assert not oracle_reference.duplicated(
         subset=["N_obs", "SNR", "L", "rep"]
     ).any()
     assert oracle_reference["oracle_l2_to_rkhs_mean_cos2"].between(0, 1).all()
-    reference_example = oracle_reference_summary[
-        (oracle_reference_summary["N_obs"] == 50)
-        & (oracle_reference_summary["SNR"] == 2.0)
-        & (oracle_reference_summary["L"] == 1)
-    ]
-    assert len(reference_example) == 1
-    assert np.isclose(
-        reference_example.iloc[0]["mean"], 0.6665092567556761, atol=1e-12
+    pooled = (
+        oracle_reference.groupby("L")["oracle_l2_to_rkhs_mean_cos2"]
+        .agg(["count", "mean", "std"])
+        .reset_index()
+        .sort_values("L")
     )
+    pooled["ci_low"] = pooled["mean"] - 1.96 * pooled["std"] / np.sqrt(
+        pooled["count"]
+    )
+    pooled["ci_high"] = pooled["mean"] + 1.96 * pooled["std"] / np.sqrt(
+        pooled["count"]
+    )
+    saved = oracle_reference_summary.sort_values("L")
+    assert np.array_equal(saved["n_reps"], pooled["count"])
+    for column in ("mean", "ci_low", "ci_high"):
+        assert np.allclose(saved[column], pooled[column], atol=1e-12)
 
 
 def validate_simulation_package() -> None:

@@ -17,8 +17,10 @@
 - `results/simulation2_sensitivity/`: final `T=30` Simulation 2 results used in
   the function-subspace figure. The `oracle_l2_reference_*` tables give the
   noiseless similarity between the RKHS-PCA target and the L2-PCA subspace for
-  the same Monte Carlo replications; this is an asymptotic reference rather
-  than a deterministic finite-sample upper bound.
+  the same Monte Carlo replications. Because this reference does not depend on
+  `N` or SNR, its summary pools all 1,800 replications within each retained
+  dimension `L`; it is an asymptotic reference rather than a deterministic
+  finite-sample upper bound.
 - `results/simulation2_T20_N50/`: 200-replication sensitivity analysis matching
   the empirical `T=20, N=50` design and supporting the corresponding sentence
   in the manuscript.

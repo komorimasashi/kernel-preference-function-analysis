@@ -300,15 +300,16 @@ def oracle_l2_reference_results():
 
 def summarise_oracle_l2_reference(reference_results):
     rows = []
-    for (observation_count, snr, component_count), group in (
-        reference_results.groupby(["N_obs", "SNR", "L"])
-    ):
+    # The noiseless reference distribution is defined by the latent function
+    # generator and L; it does not depend on the observation count or SNR.
+    # Pool all nine design cells to avoid displaying Monte Carlo variation as
+    # an apparent dependence of the reference on N or SNR.
+    for component_count, group in reference_results.groupby("L"):
         mean, low, high = mean_ci(group["oracle_l2_to_rkhs_mean_cos2"])
         rows.append(
             {
-                "N_obs": observation_count,
-                "SNR": snr,
                 "L": component_count,
+                "n_reps": len(group),
                 "mean": mean,
                 "ci_low": low,
                 "ci_high": high,

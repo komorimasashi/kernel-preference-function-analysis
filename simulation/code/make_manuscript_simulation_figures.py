@@ -138,26 +138,22 @@ def plot_subspace_accuracy(
                 )
 
             reference = oracle_reference[
-                (oracle_reference["L"] == retained)
-                & (oracle_reference["SNR"] == snr)
-            ].sort_values("N_obs")
-            reference_yerr = np.vstack(
-                [
-                    reference["mean"] - reference["ci_low"],
-                    reference["ci_high"] - reference["mean"],
-                ]
+                oracle_reference["L"] == retained
+            ].iloc[0]
+            ax.fill_between(
+                n_values,
+                reference["ci_low"],
+                reference["ci_high"],
+                color="#6F6F6F",
+                alpha=0.16,
+                linewidth=0,
             )
-            ax.errorbar(
-                reference["N_obs"],
+            ax.axhline(
                 reference["mean"],
-                yerr=reference_yerr,
                 label="Noiseless L2-PCA reference, $c$",
-                color="#4D4D4D",
-                marker="D",
-                linestyle="none",
+                color="#595959",
+                linestyle="--",
                 linewidth=1.3,
-                markersize=4.0,
-                capsize=2.5,
             )
             ax.axhline(1.0, color="#A0A0A0", linestyle=":", linewidth=1.0)
 
