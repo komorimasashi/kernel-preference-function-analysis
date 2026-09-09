@@ -41,6 +41,11 @@ to all observations standardized within participant. The search evaluates 231 co
 combinations: 21 logarithmically spaced length scales from `0.1` to `1.0` and
 11 logarithmically spaced values of `beta` from `0.0002` to `0.02`.
 
+## Historical standardization check (working record)
+
+This check was removed from the manuscript and is retained for the analysis
+record. It is not required to reproduce the primary results.
+
 `run_standardization_sensitivity.py` compares the primary procedure with the
 historical approach of standardizing all 50 ratings before cross-validation.
 The latter selects `length = 0.2818382931` and `beta = 0.0050237729`. The
@@ -50,6 +55,8 @@ squared-cosine similarity of `0.998`; the four-cluster partition is identical.
 ```bash
 python empirical/code/run_standardization_sensitivity.py
 ```
+
+## Estimation and RKHS geometry
 
 All empirical fits, including cross-validation and the standardization
 sensitivity analysis, use the participant-specific dual KRR equation

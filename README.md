@@ -4,9 +4,10 @@ This repository contains the anonymized empirical data and the Python code used
 for the simulations and empirical case study reported in *A Kernel-Based
 Framework for Analyzing Individual Differences in Preference Functions*.
 
-This is the public development repository. A versioned release will be
-archived on Zenodo when the manuscript and reproducibility materials are
-finalized.
+Version `0.2.0` provides the data, code, and results corresponding to the
+pre-submission manuscript revised on September 9, 2026. The associated article
+has not yet been submitted or accepted. A Zenodo archive and DOI may be added
+when the manuscript and reproducibility materials are finalized.
 
 ## Repository structure
 
@@ -62,11 +63,9 @@ coefficients and cross-kernel matrices, following the manuscript's Method
 section and the same equations used in the simulations. Regenerate the
 unversioned fitted-model cache with the current code before plotting.
 
-The saved standardization sensitivity analysis compares this procedure with
-z-standardizing all 50 ratings before cross-validation. The selected grid
-points shift slightly, but the top-three participant-score subspaces have a
-mean squared-cosine similarity of `0.998`, and the four-cluster partition is
-identical.
+A historical standardization sensitivity analysis is retained as a working
+record, separately described in `empirical/README.md`. It is not part of the
+current manuscript and is not required to reproduce the primary analysis.
 
 ## Simulation 1: pointwise shape reconstruction
 
@@ -109,11 +108,13 @@ manuscript.
 
 ```bash
 python validate_release.py
+python empirical/code/validate_model.py
 ```
 
 This checks the empirical data structure, aspect-ratio transformation, selected
 parameters, RKHS variance proportions, cluster sizes, and the numerical values
-reported from both simulations.
+reported from both simulations. The model checks compare the dual calculation
+with an independent feature-space solution and verify PCA invariants.
 
 ## Data and privacy
 
@@ -127,5 +128,5 @@ dates, and other direct identifiers are not included. See
 Citation metadata are provided in `CITATION.cff`. The Python source code is
 licensed under the MIT License in `LICENSE`. The data,
 numerical results, generated figures, and documentation are licensed under
-CC BY 4.0 as specified in `LICENSE-DATA.md`. The Zenodo DOI will be added to all
-three files before the public release.
+CC BY 4.0 as specified in `LICENSE-DATA.md`. No DOI has been assigned to this
+release; use the repository URL and version in `CITATION.cff` for now.
