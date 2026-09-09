@@ -4,15 +4,15 @@ This repository contains the anonymized empirical data and the Python code used
 for the simulations and empirical case study reported in *A Kernel-Based
 Framework for Analyzing Individual Differences in Preference Functions*.
 
-The repository is currently being prepared as a private working copy. A
-versioned public release will be archived on Zenodo when the manuscript and
-reproducibility materials are finalized.
+This is the public development repository. A versioned release will be
+archived on Zenodo when the manuscript and reproducibility materials are
+finalized.
 
 ## Repository structure
 
 - `empirical/`: anonymized ratings from 20 participants, x-block cross-validation,
   KRR--RKHS-PCA, clustering, numerical results, and figure-generation code.
-- `simulation/`: the two Monte Carlo studies, the additional `T=20, N=50`
+- `simulation/`: the two Monte Carlo studies, a supplementary `T=20, N=50`
   sensitivity analysis, saved numerical results, and manuscript figures.
 - `requirements.txt`: Python dependencies shared by both analyses.
 
@@ -47,8 +47,26 @@ python empirical/code/fit_selected_model.py
 python empirical/code/make_final_figures.py
 ```
 
-The selected values are `length = 0.4466835922` (reported as `0.45`) and
-`beta = 0.02` in the manuscript's mean-squared-loss parameterization.
+The selected values are `length = 0.3162277660` (reported as `0.32`) and
+`beta = 0.0031697864` (reported as `0.0032`) in the manuscript's
+mean-squared-loss parameterization. Within each fold and participant, the mean
+and population SD (`ddof=0`) are computed from the training ratings and then
+applied to both training and held-out ratings. The 231 combinations are
+the Cartesian product of 21 logarithmically spaced length scales from `0.1` to
+`1.0` and 11 logarithmically spaced `beta` values from `0.0002` to `0.02`.
+
+Cross-validation, final fitting, and sensitivity analysis use
+`alpha_t = solve(K_tt + N_t * beta * I, s_t)` without additional jitter.
+RKHS inner products are computed directly from participant-specific
+coefficients and cross-kernel matrices, following the manuscript's Method
+section and the same equations used in the simulations. Regenerate the
+unversioned fitted-model cache with the current code before plotting.
+
+The saved standardization sensitivity analysis compares this procedure with
+z-standardizing all 50 ratings before cross-validation. The selected grid
+points shift slightly, but the top-three participant-score subspaces have a
+mean squared-cosine similarity of `0.998`, and the four-cluster partition is
+identical.
 
 ## Simulation 1: pointwise shape reconstruction
 
@@ -69,7 +87,8 @@ Main sensitivity analysis (`T=30`, `N` in `{15, 30, 50}`, and SNR in
 python simulation/code/run_latent_subspace_sensitivity.py
 ```
 
-Additional empirical-design analysis (`T=20`, `N=50`):
+Supplementary empirical-design sensitivity analysis (`T=20`, `N=50`; briefly
+reported in the main manuscript):
 
 ```bash
 python simulation/code/run_latent_subspace_sensitivity_T20_N50.py

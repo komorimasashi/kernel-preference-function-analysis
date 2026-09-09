@@ -17,7 +17,7 @@ RESULTS_DIR = PACKAGE_DIR / "results"
 
 sys.path.insert(0, str(CODE_DIR))
 import load_psycho_data2  # noqa: E402
-from model.KPCA5 import SparseKPCA  # noqa: E402
+from model.rkhs_pca import RKHSFunctionPCA  # noqa: E402
 
 
 MODEL_DIM = 3
@@ -30,14 +30,13 @@ def main() -> None:
     x_list, y_list = load_psycho_data2.load_data()
     params = {
         "length": float(selected["length"]),
-        "noise_level": float(selected["noise_level"]),
+        "beta": float(selected["beta"]),
     }
-    model = SparseKPCA(
+    model = RKHSFunctionPCA(
         x_list=x_list,
         y_list=y_list,
         params=params,
         modelDim=MODEL_DIM,
-        jitter=float(selected["jitter"]),
     )
     model.fit()
     joblib.dump(model, RESULTS_DIR / "final_model.pkl")

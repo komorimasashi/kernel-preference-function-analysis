@@ -1,0 +1,112 @@
+{
+  "cv": "5-fold contiguous x blocks shared across participants",
+  "estimation": "participant-specific dual KRR; no additional jitter; direct cross-kernel RKHS inner products",
+  "schemes": {
+    "participant_full": {
+      "standardization": "participant_full",
+      "sd_definition": "population SD (ddof=0)",
+      "length": 0.28183829312644537,
+      "beta": 0.005023772863019165,
+      "mean_rmse": 0.8178077392500717
+    },
+    "training_fold": {
+      "standardization": "training_fold",
+      "sd_definition": "population SD (ddof=0)",
+      "length": 0.31622776601683794,
+      "beta": 0.0031697863849222286,
+      "mean_rmse": 0.9205714160486792
+    }
+  },
+  "downstream_results_after_full_data_fit": {
+    "participant_full": {
+      "contribution_percent_first3": [
+        45.239562962185545,
+        32.754063035213896,
+        9.463246162946067
+      ],
+      "cumulative_percent_first2": 77.99362599739945,
+      "cumulative_percent_first3": 87.45687216034551,
+      "clusters": [
+        [
+          1,
+          3,
+          5,
+          6,
+          8,
+          9,
+          18
+        ],
+        [
+          2,
+          16,
+          17,
+          19
+        ],
+        [
+          4,
+          7,
+          10,
+          11,
+          15
+        ],
+        [
+          12,
+          13,
+          14,
+          20
+        ]
+      ]
+    },
+    "training_fold": {
+      "contribution_percent_first3": [
+        45.307910279203206,
+        32.80732910670817,
+        9.882138952002713
+      ],
+      "cumulative_percent_first2": 78.11523938591137,
+      "cumulative_percent_first3": 87.99737833791409,
+      "clusters": [
+        [
+          1,
+          3,
+          5,
+          6,
+          8,
+          9,
+          18
+        ],
+        [
+          2,
+          16,
+          17,
+          19
+        ],
+        [
+          4,
+          7,
+          10,
+          11,
+          15
+        ],
+        [
+          12,
+          13,
+          14,
+          20
+        ]
+      ]
+    }
+  },
+  "downstream_comparison": {
+    "top3_participant_score_subspace_mean_cos2": 0.9983641164995513,
+    "absolute_pc_function_correlations": [
+      0.9488096796609838,
+      0.8485495909576102,
+      0.9881442293052701
+    ],
+    "mean_participant_curve_rmse_on_z_scale": 0.024321986387233936,
+    "max_participant_curve_rmse_on_z_scale": 0.04289215935115075,
+    "identical_four_cluster_partition": true
+  },
+  "interpretation": "participant_full uses all 50 ratings for each participant's mean and SD; training_fold uses only training ratings and applies those values to both training and held-out ratings"
+}

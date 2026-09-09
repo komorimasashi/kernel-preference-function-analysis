@@ -18,12 +18,6 @@ SHAPE_SUMMARY = (
     / "simulation1_metric_ablation"
     / "metric_ablation_summary.csv"
 )
-SUBSPACE_CONTRASTS = (
-    SIMULATION_DIR
-    / "results"
-    / "simulation2_sensitivity"
-    / "sensitivity_paired_contrasts.csv"
-)
 SUBSPACE_SUMMARY = (
     SIMULATION_DIR
     / "results"
@@ -80,7 +74,7 @@ def plot_reconstruction_metric(
     ax.set_xlabel("Number of retained PCs, $L$")
     ax.set_ylabel(ylabel)
     ax.set_xticks([1, 2, 3, 4, 5])
-    ax.set_ylim(0.30, 1.01)
+    ax.set_ylim(0.30, 1.04)
     ax.set_yticks(np.arange(0.3, 1.01, 0.1))
     ax.spines[["top", "right"]].set_visible(False)
     ax.legend(frameon=False)
@@ -89,7 +83,6 @@ def plot_reconstruction_metric(
 
 def plot_subspace_accuracy(
     summary: pd.DataFrame,
-    contrasts: pd.DataFrame,
     oracle_reference: pd.DataFrame,
     metric: str,
     stem: str,
@@ -97,10 +90,6 @@ def plot_subspace_accuracy(
     accuracy = summary[
         (summary["target"] == "OracleRKHS")
         & (summary["metric"] == metric)
-    ].copy()
-    differences = contrasts[
-        (contrasts["target"] == "OracleRKHS")
-        & (contrasts["metric"] == metric)
     ].copy()
     n_values = [15, 30, 50]
     snr_values = [0.5, 1.0, 2.0]
@@ -157,21 +146,6 @@ def plot_subspace_accuracy(
             )
             ax.axhline(1.0, color="#A0A0A0", linestyle=":", linewidth=1.0)
 
-            paired = differences[
-                (differences["L"] == retained)
-                & (differences["SNR"] == snr)
-            ].sort_values("N_obs")
-            for item in paired.itertuples(index=False):
-                if item.ci_low > 0 or item.ci_high < 0:
-                    ax.text(
-                        item.N_obs,
-                        0.985,
-                        "*",
-                        ha="center",
-                        va="top",
-                        fontsize=10,
-                    )
-
             if row_index == 0:
                 ax.set_title(f"$L={retained}$")
             if column_index == 0:
@@ -197,7 +171,6 @@ def plot_subspace_accuracy(
 def main() -> None:
     shape_summary = pd.read_csv(SHAPE_SUMMARY)
     subspace_summary = pd.read_csv(SUBSPACE_SUMMARY)
-    contrasts = pd.read_csv(SUBSPACE_CONTRASTS)
     oracle_reference = pd.read_csv(SUBSPACE_ORACLE_REFERENCE)
     plot_reconstruction_metric(
         shape_summary,
@@ -207,7 +180,6 @@ def main() -> None:
     )
     plot_subspace_accuracy(
         subspace_summary,
-        contrasts,
         oracle_reference,
         metric="function_mean_cos2",
         stem="simulation2_function_subspace",

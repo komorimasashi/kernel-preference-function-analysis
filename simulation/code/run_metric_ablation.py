@@ -32,7 +32,6 @@ SNR = 1.0
 ELL_EXP_GRID = [-0.3, -0.1, 0.1, 0.3, 0.5, 0.7, 0.9, 1.1, 1.3]
 REGULARIZATION_EXP_GRID = [-4, -3, -2, -1, 0, 1, 2]
 XCV_FOLDS = 5
-JITTER = 1e-6
 RNG_SEED = 9999
 
 
@@ -50,7 +49,6 @@ def select_session_parameters(x_obs, y_obs):
                 float(ell),
                 float(regularization),
                 folds,
-                JITTER,
             )
             if score > best["score"]:
                 best = {
@@ -120,7 +118,6 @@ def simulate_one_replication(x_obs, x_eval):
                 x_obs,
                 ell,
                 regularization,
-                JITTER,
             )
             for subject in range(N_SUBJECTS)
         ]

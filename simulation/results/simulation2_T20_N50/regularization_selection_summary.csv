@@ -1,0 +1,4 @@
+N_obs,SNR,n_reps,median_regularization,proportion_at_lower_grid_boundary,proportion_at_upper_grid_boundary
+50,0.5,200,0.1,0.0,0.0
+50,1.0,200,0.01,0.0,0.0
+50,2.0,200,0.001,0.0,0.0

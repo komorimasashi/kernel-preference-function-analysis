@@ -10,6 +10,7 @@ sensitivity.N_SUBJECTS = 20
 sensitivity.N_OBS_LIST = [50]
 sensitivity.SNR_LIST = [0.5, 1.0, 2.0]
 sensitivity.N_REPEATS = 200
+sensitivity.SAVE_ORACLE_REFERENCE = False
 sensitivity.OUT_DIR = (
     Path(__file__).resolve().parents[1]
     / "results"

@@ -30,9 +30,9 @@ LATENT_EIGENVALUES = np.array([4.0, 2.0, 1.0, 0.5])
 KERNEL_CENTRES = np.array([-0.80, -0.40, 0.0, 0.40, 0.80])
 REGULARIZATION_GRID = 10.0 ** np.arange(-4, 4, dtype=float)
 XCV_FOLDS = 5
-JITTER = 1e-6
 RNG_SEED = 13579
 N_QUADRATURE = 401
+SAVE_ORACLE_REFERENCE = True
 
 
 def inverse_sqrt_spd(matrix, tolerance=1e-12):
@@ -121,7 +121,6 @@ def choose_regularization(x_obs, observations):
             ELL_TRUE,
             float(regularization),
             folds,
-            JITTER,
         )
         if score > best["score"]:
             best = {
@@ -183,7 +182,6 @@ def simulate_replication(rng, observation_count, snr, latent_axes):
                 x_obs,
                 ELL_TRUE,
                 selected["regularization"],
-                JITTER,
             )
             for subject in range(N_SUBJECTS)
         ]
@@ -369,6 +367,29 @@ def summarise(results):
     return pd.DataFrame(summary_rows), pd.DataFrame(contrast_rows)
 
 
+def summarise_regularization_selection(results):
+    """Summarise CV choices once per Monte Carlo replication."""
+    selected = results.drop_duplicates(["N_obs", "SNR", "rep"])
+    rows = []
+    for (observation_count, snr), group in selected.groupby(["N_obs", "SNR"]):
+        values = group["regularization"].to_numpy()
+        rows.append(
+            {
+                "N_obs": observation_count,
+                "SNR": snr,
+                "n_reps": len(values),
+                "median_regularization": float(np.median(values)),
+                "proportion_at_lower_grid_boundary": float(
+                    np.mean(values == REGULARIZATION_GRID[0])
+                ),
+                "proportion_at_upper_grid_boundary": float(
+                    np.mean(values == REGULARIZATION_GRID[-1])
+                ),
+            }
+        )
+    return pd.DataFrame(rows)
+
+
 def main():
     OUT_DIR.mkdir(parents=True, exist_ok=True)
     latent_axes = make_common_latent_axes()
@@ -400,17 +421,22 @@ def main():
 
     results = pd.DataFrame(rows)
     summary, contrasts = summarise(results)
-    oracle_reference = oracle_l2_reference_results()
-    oracle_reference_summary = summarise_oracle_l2_reference(oracle_reference)
+    regularization_summary = summarise_regularization_selection(results)
     results.to_csv(OUT_DIR / "sensitivity_replication_results.csv", index=False)
     summary.to_csv(OUT_DIR / "sensitivity_summary.csv", index=False)
     contrasts.to_csv(OUT_DIR / "sensitivity_paired_contrasts.csv", index=False)
-    oracle_reference.to_csv(
-        OUT_DIR / "oracle_l2_reference_replication_results.csv", index=False
+    regularization_summary.to_csv(
+        OUT_DIR / "regularization_selection_summary.csv", index=False
     )
-    oracle_reference_summary.to_csv(
-        OUT_DIR / "oracle_l2_reference_summary.csv", index=False
-    )
+    if SAVE_ORACLE_REFERENCE:
+        oracle_reference = oracle_l2_reference_results()
+        oracle_reference_summary = summarise_oracle_l2_reference(oracle_reference)
+        oracle_reference.to_csv(
+            OUT_DIR / "oracle_l2_reference_replication_results.csv", index=False
+        )
+        oracle_reference_summary.to_csv(
+            OUT_DIR / "oracle_l2_reference_summary.csv", index=False
+        )
 
     primary = contrasts[
         (contrasts["target"] == "OracleRKHS") & (contrasts["L"] == 3)

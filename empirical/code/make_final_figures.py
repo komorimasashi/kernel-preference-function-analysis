@@ -7,6 +7,7 @@ import joblib
 import matplotlib as mpl
 import matplotlib.pyplot as plt
 import numpy as np
+import pandas as pd
 from matplotlib.lines import Line2D
 from scipy.cluster.hierarchy import dendrogram, fcluster, linkage
 from scipy.spatial.distance import squareform
@@ -17,13 +18,13 @@ SOURCE_DIR = Path(__file__).resolve().parent
 MODEL_PATH = PACKAGE_DIR / "results" / "final_model.pkl"
 OUTPUT_DIR = PACKAGE_DIR / "figures"
 OUTPUT_TAG = "corrected_5fold"
+N_CLUSTERS = 4
 
 CLUSTER_COLORS = {
     1: "#E69F00",
     2: "#009E73",
     3: "#D55E00",
-    4: "#0072B2",
-    5: "#CC79A7",
+    4: "#CC79A7",
 }
 
 sys.path.insert(0, str(SOURCE_DIR))
@@ -45,15 +46,16 @@ mpl.rcParams.update(
 
 def load_model():
     model = joblib.load(MODEL_PATH)
-    if model.Z is None or model.W is None:
+    if model.Z is None:
         model.fit()
     return model
 
 
 def rkhs_linkage(model):
-    centered = model.a[:, None, :] - model.a[None, :, :]
-    dist_sq = np.einsum("ijn,nm,ijm->ij", centered, model.K, centered)
+    norms = np.diag(model.H)
+    dist_sq = norms[:, None] + norms[None, :] - 2 * model.H
     dist = np.sqrt(np.maximum(dist_sq, 0.0))
+    np.fill_diagonal(dist, 0.0)
     linked = linkage(squareform(dist, checks=False), method="ward")
     return dist, linked
 
@@ -83,7 +85,7 @@ def figure3(model, x_grid, curves):
 
 def cluster_solution(model):
     _, linked = rkhs_linkage(model)
-    raw_labels = fcluster(linked, t=5, criterion="maxclust")
+    raw_labels = fcluster(linked, t=N_CLUSTERS, criterion="maxclust")
     leaf_order = np.asarray(dendrogram(linked, no_plot=True)["leaves"], dtype=int)
 
     ordered_raw = []
@@ -194,9 +196,14 @@ def figure4(model, cluster_labels):
             markersize=6,
             label=f"Cluster {cluster}",
         )
-        for cluster in range(1, 6)
+        for cluster in range(1, N_CLUSTERS + 1)
     ]
-    fig.legend(handles=legend_handles, loc="lower center", ncol=5, frameon=False)
+    fig.legend(
+        handles=legend_handles,
+        loc="lower center",
+        ncol=N_CLUSTERS,
+        frameon=False,
+    )
     fig.subplots_adjust(wspace=0.28, bottom=0.16)
     fig.savefig(OUTPUT_DIR / "empirical_pc_scores.pdf")
     plt.close(fig)
@@ -244,7 +251,7 @@ def figure5(model, x_grid):
 
 
 def dendrogram_link_color(model, linked, cluster_labels):
-    threshold = linked[-4, 2] + 1e-9
+    threshold = linked[-(N_CLUSTERS - 1), 2] + 1e-9
     node_leaves = {idx: {idx} for idx in range(model.task_size)}
     for row_idx, row in enumerate(linked):
         left, right = int(row[0]), int(row[1])
@@ -272,10 +279,10 @@ def figure6a(model, linked, cluster_labels):
         link_color_func=link_color,
     )
     ax_d.set_xlabel("Participant ID")
-    ax_d.set_ylabel("RKHS Distance")
+    ax_d.set_ylabel("Ward linkage height")
 
     leaves = np.asarray(dendro["leaves"], dtype=int)
-    for cluster in range(1, 6):
+    for cluster in range(1, N_CLUSTERS + 1):
         positions = [5 + 10 * i for i, subject_idx in enumerate(leaves) if cluster_labels[subject_idx] == cluster]
         if positions:
             ax_d.text(
@@ -299,7 +306,7 @@ def figure6b(x_grid, curves, cluster_labels):
     mini_axes = axes.ravel()
     overall = np.mean(curves, axis=0)
     series = [("Overall Mean", overall)]
-    for cluster in range(1, 6):
+    for cluster in range(1, N_CLUSTERS + 1):
         members = np.where(cluster_labels == cluster)[0]
         series.append((f"Cluster {cluster} Mean", np.mean(curves[members], axis=0)))
 
@@ -314,6 +321,8 @@ def figure6b(x_grid, curves, cluster_labels):
         ax.set_xlabel(r"$x$", fontsize=8)
         ax.set_ylabel("Standardized preference", fontsize=8)
         ax.tick_params(labelsize=6)
+    for ax in mini_axes[len(series):]:
+        ax.axis("off")
 
     fig.subplots_adjust(left=0.09, right=0.98, top=0.94, bottom=0.10, hspace=0.40, wspace=0.30)
     fig.savefig(OUTPUT_DIR / "empirical_cluster_mean_functions.pdf")
@@ -339,12 +348,19 @@ def main():
     figure5(model, x_grid)
     cluster_labels, leaves = figure6(model, x_grid, curves, linked, cluster_labels)
 
+    pd.DataFrame(
+        {
+            "participant": np.arange(1, model.task_size + 1),
+            "cluster": cluster_labels,
+        }
+    ).to_csv(PACKAGE_DIR / "results" / "cluster_membership.csv", index=False)
+
     ratios = 100 * model.eVal / np.sum(model.eVal)
     print(f"params={model.params}")
     print(f"contribution_first3={ratios[:3]}")
     print(f"cumulative_first3={ratios[:3].sum():.8f}")
     print(f"dendrogram_leaf_order={(leaves + 1).tolist()}")
-    for cluster in range(1, 6):
+    for cluster in range(1, N_CLUSTERS + 1):
         members = (np.where(cluster_labels == cluster)[0] + 1).tolist()
         print(f"cluster_{cluster}={members}")
 

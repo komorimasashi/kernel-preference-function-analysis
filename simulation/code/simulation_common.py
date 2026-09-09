@@ -32,17 +32,15 @@ def solve_spd(matrix, rhs):
         return np.linalg.solve(matrix, rhs)
 
 
-def krr_fit_coeffs(x_train, y_train, x_basis, ell, regularization, jitter=1e-6):
-    """Fit KRR coefficients on a fixed RBF-kernel basis."""
-    k_train_basis = k_rbf(x_train, x_basis, ell)
-    k_basis = k_rbf(x_basis, x_basis, ell)
-    if jitter > 0:
-        k_basis = k_basis + jitter * np.eye(k_basis.shape[0])
-    system = (
-        k_train_basis.T @ k_train_basis
-        + (len(x_train) * regularization) * k_basis
-    )
-    return solve_spd(system, k_train_basis.T @ y_train)
+def krr_fit_coeffs(x_train, y_train, x_basis, ell, regularization):
+    """Solve exact dual KRR using the training inputs as kernel centres."""
+    if not np.array_equal(np.asarray(x_train), np.asarray(x_basis)):
+        raise ValueError("Exact dual KRR requires the training inputs as centres")
+    if regularization <= 0:
+        raise ValueError("The regularization coefficient must be positive")
+    kernel = k_rbf(x_train, x_train, ell)
+    system = kernel + len(x_train) * regularization * np.eye(len(x_train))
+    return solve_spd(system, y_train)
 
 
 def reconstruct_from_dual_pca(values, component_count):
@@ -124,40 +122,33 @@ def xcv_zrmse_score_session(
     ell,
     regularization,
     folds,
-    jitter=1e-6,
 ):
-    """Mean negative z-RMSE for shared KRR parameters and x-block folds."""
+    """Mean negative RMSE after participant-wise training-fold standardization.
+
+    Each fold uses its training mean and population SD to transform both
+    training and held-out responses. KRR is solved in its exact dual form.
+    """
     observation_count = len(x_obs)
-    k_basis = k_rbf(x_obs, x_obs, ell) + jitter * np.eye(observation_count)
+    kernel = k_rbf(x_obs, x_obs, ell)
     fold_scores = []
 
     for test_indices in folds:
         train_indices = np.setdiff1d(np.arange(observation_count), test_indices)
-        y_train = observations[:, train_indices]
-        means = y_train.mean(axis=1, keepdims=True)
-        sds = y_train.std(axis=1, keepdims=True)
-        sds = np.where(sds == 0.0, 1.0, sds)
-        standardized_train = (y_train - means) / sds
-
-        k_train_basis = k_rbf(x_obs[train_indices], x_obs, ell)
-        system = (
-            k_train_basis.T @ k_train_basis
-            + (len(train_indices) * regularization) * k_basis
+        train = observations[:, train_indices]
+        train_mean = train.mean(axis=1, keepdims=True)
+        train_sd = train.std(axis=1, keepdims=True)
+        if np.any(train_sd <= 0):
+            raise ValueError("Training-fold response SD must be positive")
+        standardized_train = (train - train_mean) / train_sd
+        standardized_test = (observations[:, test_indices] - train_mean) / train_sd
+        system = kernel[np.ix_(train_indices, train_indices)] + (
+            len(train_indices) * regularization * np.eye(len(train_indices))
         )
-        coefficients = solve_spd(
-            system, k_train_basis.T @ standardized_train.T
-        ).T
-        standardized_prediction = (
-            k_rbf(x_obs[test_indices], x_obs, ell) @ coefficients.T
-        ).T
-        prediction = means + sds * standardized_prediction
+        coefficients = solve_spd(system, standardized_train.T)
+        prediction = (kernel[np.ix_(test_indices, train_indices)] @ coefficients).T
         errors = np.sqrt(
             np.mean(
-                (
-                    row_zscore(observations[:, test_indices])
-                    - row_zscore(prediction)
-                )
-                ** 2,
+                (standardized_test - prediction) ** 2,
                 axis=1,
             )
         )

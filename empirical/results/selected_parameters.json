@@ -1,11 +1,11 @@
 {
   "cv": "5-fold contiguous blocks of the sorted union of all participants' x values",
-  "preprocessing": "ratings z-standardized separately within each participant",
-  "aggregation": "zRMSE within participant and fold, then equal-weight mean across folds and participants",
-  "length": 0.44668359215096315,
-  "noise_level": 1.0,
-  "beta_precision_in_code": 1.0,
-  "beta_regularization_for_mean_squared_loss_n50": 0.02,
-  "mean_standardized_rmse": 1.0844346148368396,
-  "jitter": 1e-06
+  "preprocessing": "within each participant and fold, the training-rating mean and population SD (ddof=0) are applied to both training and held-out ratings",
+  "validation_criterion": "RMSE between held-out ratings and predictions transformed with training-fold statistics",
+  "aggregation": "RMSE within participant and fold, then equal-weight mean across folds and participants",
+  "length": 0.31622776601683794,
+  "beta": 0.0031697863849222286,
+  "mean_standardized_rmse": 0.9205714160486792,
+  "estimation": "participant-specific dual KRR: K_tt + N_t * beta * I; no additional jitter",
+  "rkhs_inner_product": "alpha_t.T @ K_ttprime @ alpha_tprime"
 }

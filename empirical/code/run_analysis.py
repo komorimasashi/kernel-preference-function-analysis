@@ -15,28 +15,17 @@ MODEL_CODE_DIR = Path(__file__).resolve().parent
 RESULTS_DIR = PACKAGE_DIR / "results"
 
 sys.path.insert(0, str(MODEL_CODE_DIR))
-from model.KPCA5 import SparseKPCA  # noqa: E402
+from model.rkhs_pca import RKHSFunctionPCA, dual_krr_coefficients, rbf_kernel  # noqa: E402
 import load_psycho_data2  # noqa: E402
 
 
 N_FOLDS = 5
-JITTER = 1e-6
 MODEL_DIM = 3
 LENGTH_GRID = np.logspace(-1, 0, 21)
-NOISE_GRID = np.logspace(-2, 0, 11)
-
-
-def rbf(x1: np.ndarray, x2: np.ndarray, length: float) -> np.ndarray:
-    dist2 = (x1[:, None] - x2[None, :]) ** 2
-    return np.exp(-dist2 / (2.0 * length**2))
-
-
-def zscore(values: np.ndarray) -> np.ndarray:
-    values = np.asarray(values, dtype=np.float64).reshape(-1)
-    sd = values.std()
-    if sd <= np.finfo(np.float64).eps:
-        return np.zeros_like(values)
-    return (values - values.mean()) / sd
+# This is beta in the manuscript objective:
+# mean squared error + beta * RKHS norm squared.
+# The endpoints correspond to the former dual shifts 0.01 and 1.0 at N=50.
+BETA_GRID = np.logspace(np.log10(0.01 / 50.0), np.log10(1.0 / 50.0), 11)
 
 
 def make_shared_x_block_masks(x_list: list[np.ndarray]) -> list[list[np.ndarray]]:
@@ -51,32 +40,37 @@ def make_shared_x_block_masks(x_list: list[np.ndarray]) -> list[list[np.ndarray]
 
 def evaluate_params(
     x_list: list[np.ndarray],
-    y_list: list[np.ndarray],
+    raw_y_list: list[np.ndarray],
     validation_masks: list[list[np.ndarray]],
     length: float,
-    noise_level: float,
+    beta: float,
 ) -> tuple[float, list[float]]:
-    """Return mean participant zRMSE and the 20 participant-level means."""
+    """Return RMSE after standardizing from each participant's training fold."""
     participant_fold_scores: list[list[float]] = [[] for _ in x_list]
     for fold_masks in validation_masks:
-        for participant, (x, y, val_mask) in enumerate(zip(x_list, y_list, fold_masks)):
+        for participant, (x, y_raw, val_mask) in enumerate(
+            zip(x_list, raw_y_list, fold_masks)
+        ):
             train_mask = ~val_mask
             if not np.any(train_mask) or not np.any(val_mask):
                 continue
             x_train = x[train_mask, 0]
             x_val = x[val_mask, 0]
-            y_train = y[train_mask]
-            y_val = y[val_mask]
+            train_mean = float(y_raw[train_mask].mean())
+            train_sd = float(y_raw[train_mask].std(ddof=0))
+            if train_sd == 0.0:
+                raise ValueError(
+                    f"Participant {participant + 1} has zero training-fold variance."
+                )
+            y_train = (y_raw[train_mask] - train_mean) / train_sd
+            y_val = (y_raw[val_mask] - train_mean) / train_sd
 
-            # Dual KRR is equivalent to the full-basis KRR step in the zero-jitter
-            # limit and avoids constructing the large union basis during CV.
-            k_train = rbf(x_train, x_train, length)
-            alpha = np.linalg.solve(
-                k_train + (noise_level + JITTER) * np.eye(k_train.shape[0]),
-                y_train,
-            )
-            y_pred = rbf(x_val, x_train, length) @ alpha
-            score = float(np.sqrt(np.mean((zscore(y_val) - zscore(y_pred)) ** 2)))
+            alpha = dual_krr_coefficients(x_train, y_train, length, beta)
+            y_pred = rbf_kernel(x_val, x_train, length) @ alpha
+            # The validation responses are transformed only with the training
+            # fold's mean and population SD, so no held-out response enters the
+            # preprocessing of the fitted model.
+            score = float(np.sqrt(np.mean((y_val - y_pred) ** 2)))
             participant_fold_scores[participant].append(score)
 
     participant_scores = [float(np.mean(scores)) for scores in participant_fold_scores if scores]
@@ -87,18 +81,18 @@ def evaluate_params(
 
 def main() -> None:
     RESULTS_DIR.mkdir(parents=True, exist_ok=True)
-    x_list, y_list = load_psycho_data2.load_data()
+    x_list, raw_y_list = load_psycho_data2.load_raw_data()
     validation_masks = make_shared_x_block_masks(x_list)
 
     rows: list[dict[str, float]] = []
-    combinations = list(product(LENGTH_GRID, NOISE_GRID))
-    for index, (length, noise_level) in enumerate(combinations, start=1):
+    combinations = list(product(LENGTH_GRID, BETA_GRID))
+    for index, (length, beta) in enumerate(combinations, start=1):
         mean_score, participant_scores = evaluate_params(
-            x_list, y_list, validation_masks, float(length), float(noise_level)
+            x_list, raw_y_list, validation_masks, float(length), float(beta)
         )
         row: dict[str, float] = {
             "length": float(length),
-            "noise_level": float(noise_level),
+            "beta": float(beta),
             "mean_standardized_rmse": mean_score,
         }
         row.update(
@@ -107,7 +101,7 @@ def main() -> None:
         rows.append(row)
         print(
             f"{index:3d}/{len(combinations)}  length={length:.6f}  "
-            f"noise={noise_level:.6f}  zRMSE={mean_score:.6f}",
+            f"beta={beta:.6f}  zRMSE={mean_score:.6f}",
             flush=True,
         )
 
@@ -118,21 +112,28 @@ def main() -> None:
     best = cv_results.iloc[0]
     selected = {
         "cv": "5-fold contiguous blocks of the sorted union of all participants' x values",
-        "preprocessing": "ratings z-standardized separately within each participant",
-        "aggregation": "zRMSE within participant and fold, then equal-weight mean across folds and participants",
+        "preprocessing": "within each participant and fold, the training-rating mean and population SD (ddof=0) are applied to both training and held-out ratings",
+        "validation_criterion": "RMSE between held-out ratings and predictions transformed with training-fold statistics",
+        "aggregation": "RMSE within participant and fold, then equal-weight mean across folds and participants",
         "length": float(best["length"]),
-        "noise_level": float(best["noise_level"]),
-        "beta_precision_in_code": float(1.0 / best["noise_level"]),
-        "beta_regularization_for_mean_squared_loss_n50": float(best["noise_level"] / 50.0),
+        "beta": float(best["beta"]),
         "mean_standardized_rmse": float(best["mean_standardized_rmse"]),
-        "jitter": JITTER,
+        "estimation": "participant-specific dual KRR: K_tt + N_t * beta * I; no additional jitter",
+        "rkhs_inner_product": "alpha_t.T @ K_ttprime @ alpha_tprime",
     }
     (RESULTS_DIR / "selected_parameters.json").write_text(
         json.dumps(selected, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
     )
 
-    params = {"length": selected["length"], "noise_level": selected["noise_level"]}
-    model = SparseKPCA(x_list=x_list, y_list=y_list, params=params, modelDim=MODEL_DIM, jitter=JITTER)
+    # After selecting the hyperparameters without response leakage, refit the
+    # final descriptive model using all observations z-standardized within each
+    # participant (population SD, ddof=0).
+    _, y_list = load_psycho_data2.load_data()
+    params = {
+        "length": selected["length"],
+        "beta": selected["beta"],
+    }
+    model = RKHSFunctionPCA(x_list=x_list, y_list=y_list, params=params, modelDim=MODEL_DIM)
     model.fit()
     joblib.dump(model, RESULTS_DIR / "final_model.pkl")
 
